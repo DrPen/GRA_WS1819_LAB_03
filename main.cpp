@@ -255,8 +255,8 @@ public:
 		Mat histImage(hist_h, hist_w, CV_8UC3, Scalar(0, 0, 0));
 		Mat zImageGray;
 		cvtColor(zImage, zImageGray, CV_BGR2GRAY);
-		int schwellwert = drawHistogram(zImageGray, hist, histImage, hist_w, hist_h, Scalar(255, 255, 255)) - 10;
-		threshold(zImageGray, currBin, schwellwert, 255, THRESH_BINARY);
+		int thresholdValue = drawHistogram(zImageGray, hist, histImage, hist_w, hist_h, Scalar(255, 255, 255)) - 10;
+		threshold(zImageGray, currBin, thresholdValue, 255, THRESH_BINARY);
 		imshow("Histogramm", histImage);
 		imshow("zBinary", currBin);
 	}
