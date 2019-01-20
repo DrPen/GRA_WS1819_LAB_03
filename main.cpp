@@ -147,6 +147,8 @@ public:
 		}
 		imshow("greaterBin", greaterBin);
 
+		greaterBinCPY = greaterBin.clone();	// ugly hotfix
+
 		compare(prevBin, currBin, lessBin, CMP_LT);
 		morphologyEx(lessBin, lessBin, MORPH_OPEN, getStructuringElement(1, Size(3, 3)));
 		cvtColor(lessBin, lessBin, CV_GRAY2BGR);
@@ -163,6 +165,7 @@ public:
 		}
 		imshow("lessBin", lessBin);
 
+		lessBinCPY = lessBin.clone();	// ugly hotfix
 	}
 
 	void detectKeyDown()
@@ -177,17 +180,17 @@ public:
 		}
 
 		Mat composed;
-		Mat mergeMat(greaterBin.rows, greaterBin.cols, CV_8UC1, Scalar(0, 0, 0, 0));
+		Mat mergeMat(greaterBinCPY.rows, greaterBinCPY.cols, CV_8UC1, Scalar(0, 0, 0, 0));
 
 		// this is where shit catches fire
 
-		cvtColor(greaterBin, greaterBin, CV_BGR2GRAY);
-		cvtColor(lessBin, lessBin, CV_BGR2GRAY);
+		cvtColor(greaterBinCPY, greaterBinCPY, CV_BGR2GRAY);
+		cvtColor(lessBinCPY, lessBinCPY, CV_BGR2GRAY);
 
 		vector<Mat> tbm;
-		tbm.push_back(greaterBin);
+		tbm.push_back(greaterBinCPY);
 		tbm.push_back(mergeMat);
-		tbm.push_back(lessBin);
+		tbm.push_back(lessBinCPY);
 
 		merge(tbm, composed);
 
@@ -216,10 +219,11 @@ public:
 			}
 		}
 
-		Mat eh;
-		colouredKeys.copyTo(eh);
-		putText(eh, keyLetters[keyIndex], Point(colouredKeys.rows / 2, colouredKeys.cols / 2), 4, 2, Scalar(0, 0, 0), 1, 5);
-		imshow("eh", eh);
+		Mat keyBoard;
+		colouredKeys.copyTo(keyBoard);
+		// putText(keyBoard, keyLetters[keyIndex], Point(colouredKeys.rows / 2, colouredKeys.cols / 2), 4, 2, Scalar(0, 0, 0), 1, 5);
+		putText(keyBoard, keyLetters[keyIndex], Point(colouredKeys.rows / 2, colouredKeys.cols / 2), 4, 2, segmentationColours[keyIndex], 1, 5);	// correct key colour
+		imshow("eh", keyBoard);
 	}
 
 	// L2A1
@@ -688,7 +692,7 @@ private:
 	vector<string> keyLetters;
 
 	Mat prevBin, currBin;
-	Mat lessBin, greaterBin;
+	Mat lessBin, greaterBin, lessBinCPY, greaterBinCPY;
 	Mat otsu;
 	Mat colouredKeys;
 
