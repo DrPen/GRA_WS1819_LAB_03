@@ -77,7 +77,6 @@ public:
 	// lab02
 	MyListener() {
 		this->frameCounter = 0;
-		this->segmentationColourSet = false;
 	}
 
 
@@ -225,6 +224,7 @@ public:
 
 			// filter tests
 			blur(grayImage, avgGrayImage, Size(3, 3));
+			linePlot(avgGrayImage);
 			imshow("Average", avgGrayImage);
 
 			Mat otsu;
@@ -479,7 +479,7 @@ public:
 		for (auto stat : labelStats) {
 			if (abs(stat.Area - avgSize) < 200)
 				stat.Colour = Scalar(rand() % 256, rand() % 256, rand() % 256);	// random, but consistent colours
-				TastenKIEZ.push_back(stat);
+			TastenKIEZ.push_back(stat);
 		}
 #endif
 		// hit and miss version, attempts to sortt by x and y coordinates, depending on how the paper is placed
@@ -495,19 +495,19 @@ public:
 				else {
 					sort(TastenKIEZ.begin(), TastenKIEZ.end(), statsSortProperty(HORIZONTAL_SORT));
 				}
-
-				if (!segmentationColourSet) {
-					for (int x = 0; x < TastenKIEZ.size(); x++) {
-						segmentationColours.push_back(Scalar(rand() % 256, rand() % 256, rand() % 256));
-						segmentationColourSet = true;
-					}
-				}
-				
-				for (int x = 0; x < TastenKIEZ.size(); x++) {
-					TastenKIEZ[x].Colour = segmentationColours[x]; // random, but consistent colours
-				}
 			}
 		}
+
+		if (segmentationColours.size() < TastenKIEZ.size()) {
+			for (int x = 0; x < TastenKIEZ.size(); x++) {
+				segmentationColours.push_back(Scalar(rand() % 256, rand() % 256, rand() % 256));
+			}
+		}
+
+		for (int x = 0; x < TastenKIEZ.size(); x++) {
+			TastenKIEZ[x].Colour = segmentationColours[x]; // random, but consistent colours
+		}
+
 
 
 		Mat image = grayImage.clone();
@@ -545,7 +545,6 @@ private:
 	cv::Mat accGrayImage, accFrameGrayImage, avgGrayImage, medianGrayImage, bilateralGrayImage;
 
 	// L2Segmentation
-	bool segmentationColourSet;			// ugly solution for static segmentaton colours using a flag
 	vector<Scalar> segmentationColours;	// contains segmentation colours sorted by keys
 };
 
@@ -690,4 +689,3 @@ int main(int argc, char *argv[])
 
 	return 0;
 }
-
