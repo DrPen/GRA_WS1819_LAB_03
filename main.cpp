@@ -12,7 +12,7 @@
 #include <opencv2/opencv.hpp>
 
 #define ENTER 13
-#define Evaluation 1
+#define EVALUATION 1
 #define RECORDVIDEO 2
 #define PLAYVIDEO 3
 
@@ -112,9 +112,13 @@ public:
 
 
 		showImage();
-		createBinaryImage();
-		comparePRVandCURR();
-		detectKeyDown();
+
+		// assignment 6
+		if (mode == EVALUATION) {
+			createBinaryImage();
+			comparePRVandCURR();
+			detectKeyDown();
+		}
 
 		// assignment 5
 		if (mode == RECORDVIDEO) {
@@ -796,9 +800,9 @@ int main(int argc, char *argv[])
 	if (argc > 1) {
 		// assignment 3
 		switch (stoi(argv[1])) {
-		case Evaluation: // assignemtn 3: if 1 then print message "data evaluation"
+		case EVALUATION: // assignemtn 3: if 1 then print message "data evaluation"
 			cout << "Call of evaluation method" << endl;
-			listener.setMode(Evaluation);
+			listener.setMode(EVALUATION);
 			break;
 		case RECORDVIDEO: // assignment 3 / 4: if 2 then record video, read prefix of video file name or take as parameter
 			if (argc == 3) {
