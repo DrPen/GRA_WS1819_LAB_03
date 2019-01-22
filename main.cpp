@@ -12,7 +12,7 @@
 #include <opencv2/opencv.hpp>
 
 #define ENTER 13
-#define Evaluation 1
+#define EVALUATION 1
 #define RECORDVIDEO 2
 #define PLAYVIDEO 3
 
@@ -77,7 +77,6 @@ public:
 	// lab02
 	MyListener() {
 		this->frameCounter = 0;
-		this->segmentationColourSet = false;
 	}
 
 
@@ -111,7 +110,15 @@ public:
 		temp = grayImage.clone();
 		undistort(temp, grayImage, cameraMatrix, distortionCoefficients);
 
+
 		showImage();
+
+		// assignment 6
+		if (mode == EVALUATION) {
+			createBinaryImage();
+			comparePRVandCURR();
+			detectKeyDown();
+		}
 
 		// assignment 5
 		if (mode == RECORDVIDEO) {
@@ -121,6 +128,106 @@ public:
 				grayVideo << grayImage;	// assingment 5: read grayImage into grayVideo
 		}
 
+	}
+
+	void comparePRVandCURR()
+	{
+		if (prevBin.empty() || currBin.empty())
+			return;
+
+		compare(prevBin, currBin, greaterBin, CMP_GT);
+		morphologyEx(greaterBin, greaterBin, MORPH_OPEN, getStructuringElement(1, Size(3, 3)));
+		cvtColor(greaterBin, greaterBin, CV_GRAY2BGR);
+
+		for (int i = 0; i < greaterBin.rows; i++)
+		{
+			for (int j = 0; j < greaterBin.cols; j++)
+			{
+				if (greaterBin.at<Vec3b>(i, j) == Vec3b(255, 255, 255))
+				{
+					greaterBin.at<Vec3b>(i, j) = Vec3b(255, 0, 0);
+				}
+			}
+		}
+		imshow("greaterBin", greaterBin);
+
+		greaterBinCPY = greaterBin.clone();	// ugly hotfix
+
+		compare(prevBin, currBin, lessBin, CMP_LT);
+		morphologyEx(lessBin, lessBin, MORPH_OPEN, getStructuringElement(1, Size(3, 3)));
+		cvtColor(lessBin, lessBin, CV_GRAY2BGR);
+
+		for (int i = 0; i < lessBin.rows; i++)
+		{
+			for (int j = 0; j < lessBin.cols; j++)
+			{
+				if (lessBin.at<Vec3b>(i, j) == Vec3b(255, 255, 255))
+				{
+					lessBin.at<Vec3b>(i, j) = Vec3b(0, 0, 255);
+				}
+			}
+		}
+		imshow("lessBin", lessBin);
+
+		lessBinCPY = lessBin.clone();	// ugly hotfix
+	}
+
+	void detectKeyDown()
+	{
+		int keyIndex = 0;
+		vector<int> colorCount;
+
+		for (int i = 0; i < segmentationColours.size(); i++)
+		{
+			if (segmentationColours.size() > colorCount.size())
+				colorCount.push_back(0);
+		}
+
+		Mat composed;
+		Mat mergeMat(greaterBinCPY.rows, greaterBinCPY.cols, CV_8UC1, Scalar(0, 0, 0, 0));
+
+		// this is where shit catches fire
+
+		cvtColor(greaterBinCPY, greaterBinCPY, CV_BGR2GRAY);
+		cvtColor(lessBinCPY, lessBinCPY, CV_BGR2GRAY);
+
+		vector<Mat> tbm;
+		tbm.push_back(greaterBinCPY);
+		tbm.push_back(mergeMat);
+		tbm.push_back(lessBinCPY);
+
+		merge(tbm, composed);
+
+		for (int i = 0; i < composed.rows; i++)
+		{
+			for (int j = 0; j < composed.cols; j++)
+			{
+				if (composed.at<Vec3b>(i, j)[2] > 0)
+				{
+					for (int k = 0; k < segmentationColours.size(); k++)
+					{
+						if (segmentationColours[k] == colouredKeys.at<Scalar>(i, j))
+							colorCount[k]++;
+					}
+				}
+			}
+		}
+
+		int max = 0;
+		for (int i = 0; i < colorCount.size(); i++)
+		{
+			if (colorCount[i] > max)
+			{
+				max = colorCount[i];
+				keyIndex = i;
+			}
+		}
+
+		Mat keyBoard;
+		colouredKeys.copyTo(keyBoard);
+		// putText(keyBoard, keyLetters[keyIndex], Point(colouredKeys.rows / 2, colouredKeys.cols / 2), 4, 2, Scalar(0, 0, 0), 1, 5);
+		putText(keyBoard, keyLetters[keyIndex], Point(colouredKeys.rows / 2, colouredKeys.cols / 2), 4, 2, segmentationColours[keyIndex], 1, 5);	// correct key colour
+		imshow("eh", keyBoard);
 	}
 
 	// L2A1
@@ -138,6 +245,20 @@ public:
 
 			imshow("20 Frames", accFrameGrayImage);
 		}
+	}
+
+	void createBinaryImage() {
+		prevBin = currBin.clone();
+
+		int hist_w = 256; int hist_h = 400;
+		Mat hist;
+		Mat histImage(hist_h, hist_w, CV_8UC3, Scalar(0, 0, 0));
+		Mat zImageGray;
+		cvtColor(zImage, zImageGray, CV_BGR2GRAY);
+		int thresholdValue = drawHistogram(zImageGray, hist, histImage, hist_w, hist_h, Scalar(255, 255, 255)) - 10;
+		threshold(zImageGray, currBin, thresholdValue, 255, THRESH_BINARY);
+		imshow("Histogramm", histImage);
+		imshow("zBinary", currBin);
 	}
 
 	void setLensParameters(const royale::LensParameters &lensParameters)
@@ -218,35 +339,21 @@ public:
 			spreadHistogram(&grayImage);
 			grayImage.convertTo(grayImage, CV_8U);
 
-			// L2A1
-			createAverageImage();
-
 			imshow("grayMeow", grayImage);
 
 			// filter tests
 			blur(grayImage, avgGrayImage, Size(3, 3));
-			imshow("Average", avgGrayImage);
+			// linePlot(avgGrayImage);
+			// imshow("Average", avgGrayImage);
 
-			Mat otsu;
 
-
-			medianBlur(grayImage, medianGrayImage, 3);
-			imshow("Median", medianGrayImage);
+			// medianBlur(grayImage, medianGrayImage, 3);
+			// imshow("Median", medianGrayImage);
 
 			threshold(avgGrayImage, otsu, 0, 255, CV_THRESH_BINARY | CV_THRESH_OTSU);
-			imshow("Otsu", otsu);
+			// imshow("Otsu", otsu);
 
 			segment(otsu);
-
-			// why not bilateral
-			bilateralFilter(grayImage, bilateralGrayImage, 9, 75, 75, BORDER_CONSTANT);
-			imshow("Bilaterial", bilateralGrayImage);
-
-
-
-			//			if (frameCounter == 0) {
-			//				imshow("grayMeow", grayImage);
-			//			}
 		}
 		else {
 			perror("Displaying grayImage failed!");
@@ -446,6 +553,44 @@ public:
 		}
 	}
 
+	double drawHistogram(Mat &img, Mat &hist, Mat &histImage, int hist_w, int hist_h, Scalar color) {
+		int histSize = 256;
+		float range[] = { 0, 256 };
+		const float* histRange = { range };
+		calcHist(&img, 1, 0, Mat(), hist, 1, &histSize, &histRange, true, false);
+		int bin_w = (int)((double)hist_w / histSize);
+		normalize(hist, hist, 0, histImage.rows, NORM_MINMAX, -1, Mat());
+
+		GaussianBlur(hist, hist, Size(0, 0), 5);
+
+		int max = 0;
+		int maxPos = 0;
+		for (int i = 0; i < histSize; i++) {
+			if (cvRound(hist.at<float>(i)) > max) {
+				max = cvRound(hist.at<float>(i));
+				maxPos = i;
+			}
+		}
+
+		int min = max;
+		double minPos = maxPos;
+		for (int i = maxPos - 1; i > 0; i--) {		// possible mistake, this was i++ wtf?
+			if (cvRound(hist.at<float>(i)) < min) {
+				min = cvRound(hist.at<float>(i));
+				minPos = i;
+			}
+			else {
+				break;
+			}
+		}
+
+		for (int i = 0; i < histSize; i++) {
+			line(histImage, Point(bin_w*(i), hist_h - cvRound(hist.at<float>(i))), Point(bin_w*(i), hist_h), color);
+		}
+
+		return minPos;
+	}
+
 	void segment(Mat pic) {
 		Mat segments, centroids, stats;
 		vector<Stats> labelStats;
@@ -479,7 +624,7 @@ public:
 		for (auto stat : labelStats) {
 			if (abs(stat.Area - avgSize) < 200)
 				stat.Colour = Scalar(rand() % 256, rand() % 256, rand() % 256);	// random, but consistent colours
-				TastenKIEZ.push_back(stat);
+			TastenKIEZ.push_back(stat);
 		}
 #endif
 		// hit and miss version, attempts to sortt by x and y coordinates, depending on how the paper is placed
@@ -495,29 +640,31 @@ public:
 				else {
 					sort(TastenKIEZ.begin(), TastenKIEZ.end(), statsSortProperty(HORIZONTAL_SORT));
 				}
-
-				if (!segmentationColourSet) {
-					for (int x = 0; x < TastenKIEZ.size(); x++) {
-						segmentationColours.push_back(Scalar(rand() % 256, rand() % 256, rand() % 256));
-						segmentationColourSet = true;
-					}
-				}
-				
-				for (int x = 0; x < TastenKIEZ.size(); x++) {
-					TastenKIEZ[x].Colour = segmentationColours[x]; // random, but consistent colours
-				}
 			}
 		}
 
 
-		Mat image = grayImage.clone();
-		cvtColor(image, image, CV_GRAY2BGR);
-
-		for (auto key : TastenKIEZ) {
-			rectangle(image, Rect(key.X, key.Y, key.Width, key.Height), key.Colour, CV_FILLED);
+		if (segmentationColours.size() < TastenKIEZ.size()) {
+			for (int x = 0; x < TastenKIEZ.size(); x++) {
+				segmentationColours.push_back(Scalar(rand() % 256, rand() % 256, rand() % 256));
+				keyLetters.push_back(string(1, 'A' + x));
+			}
 		}
 
-		imshow("SegmentedImage", image);
+		for (int x = 0; x < TastenKIEZ.size(); x++) {
+			TastenKIEZ[x].Colour = segmentationColours[x]; // random, but consistent colours
+		}
+
+
+
+		colouredKeys = grayImage.clone();
+		cvtColor(colouredKeys, colouredKeys, CV_GRAY2BGR);
+
+		for (auto key : TastenKIEZ) {
+			rectangle(colouredKeys, Rect(key.X, key.Y, key.Width, key.Height), key.Colour, CV_FILLED);
+		}
+
+		imshow("SegmentedImage", colouredKeys);
 		waitKey(1);
 	}
 
@@ -545,8 +692,14 @@ private:
 	cv::Mat accGrayImage, accFrameGrayImage, avgGrayImage, medianGrayImage, bilateralGrayImage;
 
 	// L2Segmentation
-	bool segmentationColourSet;			// ugly solution for static segmentaton colours using a flag
 	vector<Scalar> segmentationColours;	// contains segmentation colours sorted by keys
+	vector<string> keyLetters;
+
+	Mat prevBin, currBin;
+	Mat lessBin, greaterBin, lessBinCPY, greaterBinCPY;
+	Mat otsu;
+	Mat colouredKeys;
+
 };
 
 int main(int argc, char *argv[])
@@ -647,9 +800,9 @@ int main(int argc, char *argv[])
 	if (argc > 1) {
 		// assignment 3
 		switch (stoi(argv[1])) {
-		case Evaluation: // assignemtn 3: if 1 then print message "data evaluation"
+		case EVALUATION: // assignemtn 3: if 1 then print message "data evaluation"
 			cout << "Call of evaluation method" << endl;
-			listener.setMode(Evaluation);
+			listener.setMode(EVALUATION);
 			break;
 		case RECORDVIDEO: // assignment 3 / 4: if 2 then record video, read prefix of video file name or take as parameter
 			if (argc == 3) {
@@ -690,4 +843,3 @@ int main(int argc, char *argv[])
 
 	return 0;
 }
-
