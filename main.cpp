@@ -151,7 +151,7 @@ public:
 		}
 		imshow("greaterBin", greaterBin);
 
-		greaterBinCPY = greaterBin.clone();	// ugly hotfix
+		greaterBinCPY = greaterBin.clone();	// ugly hotfix, probably not even necessary, toDo: check if necessary
 
 		compare(prevBin, currBin, lessBin, CMP_LT);
 		morphologyEx(lessBin, lessBin, MORPH_OPEN, getStructuringElement(1, Size(3, 3)));
@@ -187,6 +187,10 @@ public:
 		Mat mergeMat(greaterBinCPY.rows, greaterBinCPY.cols, CV_8UC1, Scalar(0, 0, 0, 0));
 
 		// this is where shit catches fire
+		// possible ideas to fix this mess:
+		// why are we even going through all that trouble? I mean the only colour that we care
+		// about is the red mask. If we do it this way we have a black image and all red and blue frames in it
+		// and we then end up looking at only one channel anyway
 
 		cvtColor(greaterBinCPY, greaterBinCPY, CV_BGR2GRAY);
 		cvtColor(lessBinCPY, lessBinCPY, CV_BGR2GRAY);
@@ -225,9 +229,10 @@ public:
 
 		Mat keyBoard;
 		colouredKeys.copyTo(keyBoard);
+		// Mat keyBoard = colouredKeys.clone();
 		// putText(keyBoard, keyLetters[keyIndex], Point(colouredKeys.rows / 2, colouredKeys.cols / 2), 4, 2, Scalar(0, 0, 0), 1, 5);
 		putText(keyBoard, keyLetters[keyIndex], Point(colouredKeys.rows / 2, colouredKeys.cols / 2), 4, 2, segmentationColours[keyIndex], 1, 5);	// correct key colour
-		imshow("eh", keyBoard);
+		imshow("KeyBoard Letter", keyBoard);
 	}
 
 	// L2A1
@@ -248,17 +253,18 @@ public:
 	}
 
 	void createBinaryImage() {
-		prevBin = currBin.clone();
-
 		int hist_w = 256; int hist_h = 400;
 		Mat hist;
 		Mat histImage(hist_h, hist_w, CV_8UC3, Scalar(0, 0, 0));
 		Mat zImageGray;
+
 		cvtColor(zImage, zImageGray, CV_BGR2GRAY);
 		int thresholdValue = drawHistogram(zImageGray, hist, histImage, hist_w, hist_h, Scalar(255, 255, 255)) - 10;
 		threshold(zImageGray, currBin, thresholdValue, 255, THRESH_BINARY);
-		imshow("Histogramm", histImage);
+		imshow("Histogram", histImage);
 		imshow("zBinary", currBin);
+
+		prevBin = currBin.clone();
 	}
 
 	void setLensParameters(const royale::LensParameters &lensParameters)
